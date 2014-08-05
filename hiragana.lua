@@ -1,90 +1,134 @@
 -----------------------------------------------------------------------------------------
 --
--- level1.lua
+-- hiragana.lua
 --
 -----------------------------------------------------------------------------------------
 
 local composer = require( "composer" )
 local scene = composer.newScene()
-
+local network = require  "network"
+local urlEncoder = require("socket.url")
 -- include Corona's "physics" library
 local physics = require "physics"
 physics.start(); physics.pause()
-physics.setGravity(0,0.3)
 --------------------------------------------
 
 -- forward declarations and other locals
 local sceneGroup
 
 local screenW, screenH = display.contentWidth, display.contentHeight
-local halfW, HalfH = screenW*0.5, screenH*0.5
+local halfW, halfH = screenW*0.5, screenH*0.5
+local initDelay = 1000
+local choicesOffset = 100
+local preURL = "http://www.translate.google.com/translate_tts?ie=UTF-8&tl=ja&q="
+
+local charTable = _G.charTableHiragana
+local curTable = {1, 2, 3}		-- temporary values
+local letterIndex
+local letText
+local choice1
+local choice2
+local choice3
 
 local background
+local speech
 
-local bubbleOptions =
-{
-    -- required parameters
-    width = 100,
-    height = 100,
-    numFrames = 10,
-}
-local bubbleSeq = {
+--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--
+--==                       Functions                          ==--
+--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--
+local function networkListener( event )
+	if ( event.isError ) then
+		print ( "Network error - download failed" )
+	else
+		speech = audio.loadSound( "speak.mp3", system.TemporaryDirectory )
+		audio.play( speech )
+	end
 
-  { name = "bubbleCount",  --name of animation sequence
-    start = 1,  --starting frame index
-    count = 10,  --total number of frames to animate consecutively before stopping or looping
-    time = 1000,
-    loopCount = 1
-}
-}
-local bubbleSheet = graphics.newImageSheet( "bubble.png", bubbleOptions )
-
-local bubble
-local bubbleTimer
-local scale
-local radius = 50
-local radiusgap = 55
-local initDelay = 1000
-local bubbleLife = 6000
-
---==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==
---==    Functions
---==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==
-function spawn()
-	-- do all the things
-	bubble = display.newSprite(bubbleSheet, bubbleSeq)
-	scale = math.random(60, 100)*0.01
-	bubble:scale(scale, scale)
-	bubble.x = math.random(radiusgap, screenW-radiusgap)
-	bubble.y = math.random(radiusgap, screenH-radiusgap)
-	physics.addBody( bubble, {density=0.5, friction=0, bounce=1, radius=50*scale} )
-	bubble:setLinearVelocity(math.random(-20,20), math.random(-20,20))
-	bubble:setFrame(math.random(1,10))
-	bubble:addEventListener("tap", onTap)
-
-	sceneGroup:insert(bubble)
-
-	bubbleTimer = timer.performWithDelay(math.random(4000, 10000), nextBubble)
 end
 
-function nextBubble()
-	-- get rid of bubble and spawn new one
-	display.remove(bubble)
-	bubble=nil
-	spawn()
+function lowerHealth()
+	-- perform what needs to be done
 end
 
-function onTap(event)
-	-- pop it
+function onSymbolTap(event)
+	local target = event.target
+	if letterIndex == target.index then	-- correct
+		target:setFillColor(0, 1, 0.3)
+		-- congratulate?
 
-	timer.cancel(bubbleTimer)
-	physics.removeBody(bubble)
-	local frame = bubble.frame
-	transition.to( bubble, { time=1000, x=15+30*frame, y=15, width=30, height=30, xScale=1, yScale=1, transition=easing.inOutCubic } )
-	spawn()
+		-- fade out letter and symbols
+		transition.fadeOut(letText , { time=1000 } )
+		transition.fadeOut(choice1 , { time=1000 } )
+		transition.fadeOut(choice2 , { time=1000 } )
+		transition.fadeOut(choice3 , { time=1000 } )
 
-	-- nextBubble()
+		-- load next set
+		timer.performWithDelay(2000, displayNext)
+	else 								-- incorrect
+		target:setFillColor(1, 0, 0)
+		lowerHealth()
+	end
 
+end
+
+function displayNext()
+	-- removal of previous garbage --
+	---------------------------------
+	display.remove(letText)
+	display.remove(choice1)
+	display.remove(choice2)
+	display.remove(choice3)
+	local dir = system.TemporaryDirectory  -- where the file is stored
+	os.remove( system.pathForFile( "speak.mp3", dir  ) )
+	---------------------------------
+	--- display next matching
+	letterIndex = math.random(46)
+	local letterStr = charTable[letterIndex].let
+	-- display letter set
+	letText = display.newText(letterStr, halfW, halfH-50, native.systemFont, 72)
+	-- get letter sound from Google Translate
+	local ending = urlEncoder.escape(charTable[letterIndex].sym)
+	local url = preURL..ending
+	print(url)
+	network.download( 
+		url,
+		"GET", 
+		networkListener, 
+		"speak.mp3", 
+		system.TemporaryDirectory
+		)
+
+	-- pick two other random symbols
+	curTable[1], curTable[2], curTable[3] = letterIndex, math.random(46), math.random(46)
+	while curTable[1]==curTable[2] or curTable[1]==curTable[3] do
+		curTable[2] = math.random(46)
+		curTable[3] = math.random(46)
+	end
+
+	-- reorder symbol table
+	table.sort(curTable)
+	print("After sorting")
+
+	-- display 3 choices of symbols
+	choice1 = display.newText(charTable[curTable[1]].sym,
+		halfW-100, halfH+choicesOffset, native.systemFont, 28)
+	choice2 = display.newText(charTable[curTable[2]].sym,
+		halfW, halfH+choicesOffset, native.systemFont, 28)
+	choice3 = display.newText(charTable[curTable[3]].sym,
+		halfW+100, halfH+choicesOffset, native.systemFont, 28)
+	print("Done displaying")
+
+	-- indexes for symbols
+	choice1.index = curTable[1]
+	choice2.index = curTable[2]
+	choice3.index = curTable[3]
+
+	-- tap listeners for symbols
+	choice1:addEventListener( "tap", onSymbolTap )
+	choice2:addEventListener( "tap", onSymbolTap )
+	choice3:addEventListener( "tap", onSymbolTap )
+
+	return true
 end
 
 function scene:create( event )
@@ -100,28 +144,9 @@ function scene:create( event )
 	background.anchorX, background.anchorY = 0, 0
 	background.x, background.y = 0, 0
 	
-	wallRight = display.newRect(screenW, HalfH, 1, screenH)
-	physics.addBody(wallRight, "static", {friction=0,bounce=1})
-
-	wallLeft = display.newRect(-1, HalfH, 1, screenH)
-	physics.addBody(wallLeft, "static", {friction=0,bounce=1})
-
-	wallTop = display.newRect(halfW, -1, screenW, 1)
-	physics.addBody(wallTop, "static", {friction=0,bounce=1})
-
-	wallBottom = display.newRect(halfW, screenH, screenW, 1)
-	physics.addBody(wallBottom, "static", {friction=0,bounce=1})
-
 	-- all display objects must be inserted into group
 	sceneGroup:insert( background )
-	sceneGroup:insert(wallRight)
-	sceneGroup:insert(wallLeft)
-	sceneGroup:insert(wallTop)
-	sceneGroup:insert(wallBottom)
-
-	timer.performWithDelay(initDelay, spawn)
 end
-
 
 function scene:show( event )
 	local sceneGroup = self.view
@@ -129,12 +154,15 @@ function scene:show( event )
 	
 	if phase == "will" then
 		-- Called when the scene is still off screen and is about to move on screen
-	elseif phase == "did" then
+		elseif phase == "did" then
 		-- Called when the scene is now on screen
 		-- 
 		-- INSERT code here to make the scene come alive
 		-- e.g. start timers, begin animation, play audio, etc.
 		physics.start()
+
+		-- Initiate timer to start first matching
+		timer.performWithDelay(initDelay, displayNext)
 	end
 end
 
@@ -148,8 +176,8 @@ function scene:hide( event )
 		--
 		-- INSERT code here to pause the scene
 		-- e.g. stop timers, stop animation, unload sounds, etc.)
-		physics.stop()
-	elseif phase == "did" then
+physics.stop()
+elseif phase == "did" then
 		-- Called when the scene is now off screen
 	end	
 	
