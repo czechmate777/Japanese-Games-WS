@@ -131,10 +131,12 @@ function onLetterToggleTap(event)
 		showLetter = false		-- change boolean
 		transition.fadeOut(letText , { time=200 } )	-- fade out letText
 		transition.fadeOut(letterToggleCross, {time = 200})		-- change toggler
+		transition.fadeIn(speaker, {time = 1000})
 	else
 		showLetter = true		-- change boolean
-		transition.fadeIn(letText , { time=200 } )	-- fade in letText
+		transition.fadeIn(letText , { time=1000 } )	-- fade in letText
 		transition.fadeIn(letterToggleCross, {time = 200})		-- change toggler
+		transition.fadeOut(speaker, {time = 200})
 	end
 end
 
@@ -157,6 +159,11 @@ function scene:create( event )
 	letterToggle = display.newImageRect("letterToggle.png", 50, 50)
 	letterToggle.x, letterToggle.y = screenW-50, 50
 	letterToggle:addEventListener( "tap", onLetterToggleTap )
+
+	speaker = display.newImageRect("speaker.png", 100, 100)
+	speaker.x, speaker.y = halfW, halfH-50
+	speaker:addEventListener("tap", onLetterTap)
+	speaker.alpha = 0
 	
 	-- all display objects must be inserted into group
 	sceneGroup:insert( background )
