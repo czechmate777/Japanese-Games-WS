@@ -6,7 +6,6 @@
 
 local composer = require( "composer" )
 local scene = composer.newScene()
-local network = require  "network"
 local urlEncoder = require("socket.url")
 -- include Corona's "physics" library
 local physics = require "physics"
@@ -20,10 +19,11 @@ local screenW, screenH = display.contentWidth, display.contentHeight
 local halfW, halfH = screenW*0.5, screenH*0.5
 local initDelay = 1000
 local choicesOffset = 100
-local preURL = "http://www.translate.google.com/translate_tts?ie=UTF-8&tl=ja&q="
 
 local charTable = _G.charTableHiragana
 local curTable = {1, 2, 3}		-- temporary values
+local symbolSize = 72
+local symbolSpacing = 150
 local letterIndex
 local letText
 local choice1
@@ -36,18 +36,11 @@ local speech
 --==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--
 --==                       Functions                          ==--
 --==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--
-local function networkListener( event )
-	if ( event.isError ) then
-		print ( "Network error - download failed" )
-	else
-		speech = audio.loadSound( "speak.mp3", system.TemporaryDirectory )
-		audio.play( speech )
-	end
-
-end
-
 function lowerHealth()
 	-- perform what needs to be done
+end
+function onLetterTap(event)
+	audio.play(speach)
 end
 
 function onSymbolTap(event)
@@ -65,7 +58,8 @@ function onSymbolTap(event)
 		-- load next set
 		timer.performWithDelay(2000, displayNext)
 	else 								-- incorrect
-		target:setFillColor(1, 0, 0)
+		-- target:setFillColor(1, 0, 0) -- turn red
+		transition.fadeOut(target, {time = 1000})
 		lowerHealth()
 	end
 
@@ -78,25 +72,16 @@ function displayNext()
 	display.remove(choice1)
 	display.remove(choice2)
 	display.remove(choice3)
-	local dir = system.TemporaryDirectory  -- where the file is stored
-	os.remove( system.pathForFile( "speak.mp3", dir  ) )
 	---------------------------------
 	--- display next matching
 	letterIndex = math.random(46)
 	local letterStr = charTable[letterIndex].let
 	-- display letter set
 	letText = display.newText(letterStr, halfW, halfH-50, native.systemFont, 72)
-	-- get letter sound from Google Translate
-	local ending = urlEncoder.escape(charTable[letterIndex].sym)
-	local url = preURL..ending
-	print(url)
-	network.download( 
-		url,
-		"GET", 
-		networkListener, 
-		"speak.mp3", 
-		system.TemporaryDirectory
-		)
+
+	-- Load and play sound
+	speach = audio.loadSound("Audio/"..charTable[letterIndex].let..".mp3")
+	audio.play(speach)
 
 	-- pick two other random symbols
 	curTable[1], curTable[2], curTable[3] = letterIndex, math.random(46), math.random(46)
@@ -111,11 +96,11 @@ function displayNext()
 
 	-- display 3 choices of symbols
 	choice1 = display.newText(charTable[curTable[1]].sym,
-		halfW-100, halfH+choicesOffset, native.systemFont, 28)
+		halfW-symbolSpacing, halfH+choicesOffset, native.systemFont, symbolSize)
 	choice2 = display.newText(charTable[curTable[2]].sym,
-		halfW, halfH+choicesOffset, native.systemFont, 28)
+		halfW, halfH+choicesOffset, native.systemFont, symbolSize)
 	choice3 = display.newText(charTable[curTable[3]].sym,
-		halfW+100, halfH+choicesOffset, native.systemFont, 28)
+		halfW+symbolSpacing, halfH+choicesOffset, native.systemFont, symbolSize)
 	print("Done displaying")
 
 	-- indexes for symbols
@@ -123,10 +108,11 @@ function displayNext()
 	choice2.index = curTable[2]
 	choice3.index = curTable[3]
 
-	-- tap listeners for symbols
+	-- tap listeners for symbols and letters
 	choice1:addEventListener( "tap", onSymbolTap )
 	choice2:addEventListener( "tap", onSymbolTap )
 	choice3:addEventListener( "tap", onSymbolTap )
+	letText:addEventListener( "tap", onLetterTap )
 
 	return true
 end
