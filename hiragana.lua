@@ -29,6 +29,9 @@ local letText
 local choice1
 local choice2
 local choice3
+local letterToggle
+local letterToggleCross
+local showLetter = true
 
 local background
 local speech
@@ -78,6 +81,11 @@ function displayNext()
 	local letterStr = charTable[letterIndex].let
 	-- display letter set
 	letText = display.newText(letterStr, halfW, halfH-50, native.systemFont, 72)
+	if showLetter then
+		letText.alpha = 1
+	else
+		letText.alpha = 0
+	end
 
 	-- Load and play sound
 	speach = audio.loadSound("Audio/"..charTable[letterIndex].let..".mp3")
@@ -117,6 +125,19 @@ function displayNext()
 	return true
 end
 
+function onLetterToggleTap(event)
+	-- When toggler tapped, check if on or off
+	if showLetter then
+		showLetter = false		-- change boolean
+		transition.fadeOut(letText , { time=200 } )	-- fade out letText
+		transition.fadeOut(letterToggleCross, {time = 200})		-- change toggler
+	else
+		showLetter = true		-- change boolean
+		transition.fadeIn(letText , { time=200 } )	-- fade in letText
+		transition.fadeIn(letterToggleCross, {time = 200})		-- change toggler
+	end
+end
+
 function scene:create( event )
 
 	-- Called when the scene's view does not exist.
@@ -129,9 +150,18 @@ function scene:create( event )
 	background = display.newImageRect("bg.png", screenW, screenH)
 	background.anchorX, background.anchorY = 0, 0
 	background.x, background.y = 0, 0
+
+	letterToggleCross = display.newImageRect("letterToggleCross.png", 50, 50)
+	letterToggleCross.x, letterToggleCross.y = screenW-50, 50
+
+	letterToggle = display.newImageRect("letterToggle.png", 50, 50)
+	letterToggle.x, letterToggle.y = screenW-50, 50
+	letterToggle:addEventListener( "tap", onLetterToggleTap )
 	
 	-- all display objects must be inserted into group
 	sceneGroup:insert( background )
+	sceneGroup:insert(letterToggle)
+	sceneGroup:insert(letterToggleCross)
 end
 
 function scene:show( event )
