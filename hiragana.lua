@@ -18,7 +18,9 @@ local sceneGroup
 local screenW, screenH = display.contentWidth, display.contentHeight
 local halfW, halfH = screenW*0.5, screenH*0.5
 local initDelay = 1000
-local choicesOffset = 100
+local transTime = 1000
+local choicesOffset = 80
+local rotAngle = 0
 
 local charTable = _G.charTableHiragana
 local curTable = {1, 2, 3}		-- temporary values
@@ -35,6 +37,8 @@ local showLetter = true
 
 local background
 local speech
+local wrong
+local correct
 
 --==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--==--
 --==                       Functions                          ==--
@@ -51,18 +55,30 @@ function onSymbolTap(event)
 	if letterIndex == target.index then	-- correct
 		target:setFillColor(0, 1, 0.3)
 		-- congratulate?
-
+		audio.play(correct)
 		-- fade out letter and symbols
-		transition.fadeOut(letText , { time=1000 } )
-		transition.fadeOut(choice1 , { time=1000 } )
-		transition.fadeOut(choice2 , { time=1000 } )
-		transition.fadeOut(choice3 , { time=1000 } )
-
+		transition.fadeOut(letText , { time=transTime } )
+		transition.fadeOut(choice1 , { time=transTime } )
+		transition.fadeOut(choice2 , { time=transTime } )
+		transition.fadeOut(choice3 , { time=transTime } )
 		-- load next set
-		timer.performWithDelay(2000, displayNext)
+		timer.performWithDelay(transTime, displayNext)
 	else 								-- incorrect
 		-- target:setFillColor(1, 0, 0) -- turn red
+		-- play wrong sound
+		audio.play(wrong)
+		-- wrong one fades
 		transition.fadeOut(target, {time = 1000})
+		-- vibrate
+		system.vibrate()
+		system.vibrate()
+		system.vibrate()
+		system.vibrate()
+		system.vibrate()
+		system.vibrate()
+		system.vibrate()
+		system.vibrate()
+		-- lower health
 		lowerHealth()
 	end
 
@@ -81,6 +97,7 @@ function displayNext()
 	local letterStr = charTable[letterIndex].let
 	-- display letter set
 	letText = display.newText(letterStr, halfW, halfH-50, native.systemFont, 72)
+	letText.rotation = rotAngle
 	if showLetter then
 		letText.alpha = 1
 	else
@@ -109,6 +126,9 @@ function displayNext()
 		halfW, halfH+choicesOffset, native.systemFont, symbolSize)
 	choice3 = display.newText(charTable[curTable[3]].sym,
 		halfW+symbolSpacing, halfH+choicesOffset, native.systemFont, symbolSize)
+	choice1.rotation = rotAngle
+	choice2.rotation = rotAngle
+	choice3.rotation = rotAngle
 	print("Done displaying")
 
 	-- indexes for symbols
@@ -128,16 +148,31 @@ end
 function onLetterToggleTap(event)
 	-- When toggler tapped, check if on or off
 	if showLetter then
-		showLetter = false		-- change boolean
-		transition.fadeOut(letText , { time=200 } )	-- fade out letText
+		showLetter = false										-- change boolean
+		transition.fadeOut(letText , { time=200 } )				-- fade out letText
 		transition.fadeOut(letterToggleCross, {time = 200})		-- change toggler
-		transition.fadeIn(speaker, {time = 1000})
+		transition.fadeIn(speaker, {time = 1000})				-- fade in Speaker
 	else
-		showLetter = true		-- change boolean
-		transition.fadeIn(letText , { time=1000 } )	-- fade in letText
+		showLetter = true										-- change boolean
+		transition.fadeIn(letText , { time=1000 } )				-- fade in letText
 		transition.fadeIn(letterToggleCross, {time = 200})		-- change toggler
-		transition.fadeOut(speaker, {time = 200})
+		transition.fadeOut(speaker, {time = 200})				-- fade out speaker
 	end
+end
+
+local function onOrientationChange( event )
+	-- get difference in rotation
+    local delta = event.delta
+    -- set rotation for future
+    rotAngle = rotAngle - delta
+    -- rotate ALL THE THINGS
+    transition.to( letText, { rotation=letText.rotation-delta, time=500, transition=easing.inOutCubic } )
+    transition.to( speaker, { rotation=speaker.rotation-delta, time=500, transition=easing.inOutCubic } )
+    transition.to( letterToggle, { rotation=letterToggle.rotation-delta, time=500, transition=easing.inOutCubic } )
+    transition.to( letterToggleCross, { rotation=letterToggleCross.rotation-delta, time=500, transition=easing.inOutCubic } )
+    transition.to( choice1, { rotation=choice1.rotation-delta, time=500, transition=easing.inOutCubic } )
+    transition.to( choice2, { rotation=choice2.rotation-delta, time=500, transition=easing.inOutCubic } )
+    transition.to( choice3, { rotation=choice3.rotation-delta, time=500, transition=easing.inOutCubic } )
 end
 
 function scene:create( event )
@@ -154,21 +189,27 @@ function scene:create( event )
 	background.x, background.y = 0, 0
 
 	letterToggleCross = display.newImageRect("letterToggleCross.png", 50, 50)
-	letterToggleCross.x, letterToggleCross.y = screenW-50, 50
+	letterToggleCross.x, letterToggleCross.y = screenW-50, 60
 
 	letterToggle = display.newImageRect("letterToggle.png", 50, 50)
-	letterToggle.x, letterToggle.y = screenW-50, 50
+	letterToggle.x, letterToggle.y = screenW-50, 60
 	letterToggle:addEventListener( "tap", onLetterToggleTap )
 
 	speaker = display.newImageRect("speaker.png", 100, 100)
 	speaker.x, speaker.y = halfW, halfH-50
 	speaker:addEventListener("tap", onLetterTap)
 	speaker.alpha = 0
+
+	wrong = audio.loadSound("Audio/wrong.mp3")
+	correct = audio.loadSound("Audio/correct.mp3")
 	
 	-- all display objects must be inserted into group
 	sceneGroup:insert( background )
 	sceneGroup:insert(letterToggle)
 	sceneGroup:insert(letterToggleCross)
+
+	-- Runtime listeners
+	Runtime:addEventListener( "orientation", onOrientationChange )
 end
 
 function scene:show( event )
