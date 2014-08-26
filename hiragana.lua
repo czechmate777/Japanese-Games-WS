@@ -21,6 +21,7 @@ local initDelay = 1000
 local transTime = 1000
 local choicesOffset = 80
 local rotAngle = 0
+local rotTime = 500
 
 local charTable = _G.charTableHiragana
 local curTable = {1, 2, 3}		-- temporary values
@@ -121,7 +122,7 @@ function displayNext()
 
 	-- display 3 choices of symbols
 	choice1 = display.newText(charTable[curTable[1]].sym,
-		halfW-symbolSpacing, halfH+choicesOffset, native.systemFont, symbolSize)
+		halfW-symbolSpacing, halfH+choicesOffset, KazuFont, symbolSize)
 	choice2 = display.newText(charTable[curTable[2]].sym,
 		halfW, halfH+choicesOffset, native.systemFont, symbolSize)
 	choice3 = display.newText(charTable[curTable[3]].sym,
@@ -162,17 +163,22 @@ end
 
 local function onOrientationChange( event )
 	-- get difference in rotation
-    local delta = event.delta
+	local orientation = event.type
     -- set rotation for future
-    rotAngle = rotAngle - delta
+    if orientation == "landscapeLeft" then
+    	rotAngle = 0
+    end
+    if orientation == "portrait" then
+    	rotAngle = 90
+    end
     -- rotate ALL THE THINGS
-    transition.to( letText, { rotation=letText.rotation-delta, time=500, transition=easing.inOutCubic } )
-    transition.to( speaker, { rotation=speaker.rotation-delta, time=500, transition=easing.inOutCubic } )
-    transition.to( letterToggle, { rotation=letterToggle.rotation-delta, time=500, transition=easing.inOutCubic } )
-    transition.to( letterToggleCross, { rotation=letterToggleCross.rotation-delta, time=500, transition=easing.inOutCubic } )
-    transition.to( choice1, { rotation=choice1.rotation-delta, time=500, transition=easing.inOutCubic } )
-    transition.to( choice2, { rotation=choice2.rotation-delta, time=500, transition=easing.inOutCubic } )
-    transition.to( choice3, { rotation=choice3.rotation-delta, time=500, transition=easing.inOutCubic } )
+    transition.to( letText, { rotation=rotAngle, time=rotTime, transition=easing.inOutCubic } )
+    transition.to( speaker, { rotation=rotAngle, time=rotTime, transition=easing.inOutCubic } )
+    transition.to( letterToggle, { rotation=rotAngle, time=rotTime, transition=easing.inOutCubic } )
+    transition.to( letterToggleCross, { rotation=rotAngle, time=rotTime, transition=easing.inOutCubic } )
+    transition.to( choice1, { rotation=rotAngle, time=rotTime, transition=easing.inOutCubic } )
+    transition.to( choice2, { rotation=rotAngle, time=rotTime, transition=easing.inOutCubic } )
+    transition.to( choice3, { rotation=rotAngle, time=rotTime, transition=easing.inOutCubic } )
 end
 
 function scene:create( event )

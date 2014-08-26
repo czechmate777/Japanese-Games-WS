@@ -5,7 +5,7 @@ settings = {
 	
 	orientation = {
 		default = "landscapeLeft",
-		supported = { "landscapeLeft", }
+		supported = { "landscapeLeft",}
 	},
 	
 	iphone = {
